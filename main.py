@@ -134,6 +134,28 @@ def finalize(qs):
     return vals
 
 
+def id_key(value):
+    """A hashable key for one trophy id.
+
+    The output rule is one row per id, so an id has to be usable as a set
+    member. A case file can carry a list or an object in that slot, which is
+    not hashable, and the TypeError that raised used to cost the whole case
+    its output rather than the one malformed trophy its row.
+    """
+    if value is None:
+        return ("none",)
+    if isinstance(value, bool):
+        return ("bool", value)
+    if isinstance(value, str):
+        return ("str", value)
+    if isinstance(value, (int, float)):
+        return ("num", float(value))
+    try:
+        return ("json", json.dumps(value, sort_keys=True, default=str))
+    except (TypeError, ValueError):
+        return ("repr", repr(value))
+
+
 def median(vals):
     if not vals:
         return None
@@ -371,9 +393,7 @@ def forecast_case(case):
     seen = set()
     uniq = []
     for row in out_rows:
-        key = row["id"]
-        if key is None:
-            key = "missing"
+        key = id_key(row["id"])
         if key in seen:
             continue
         seen.add(key)
